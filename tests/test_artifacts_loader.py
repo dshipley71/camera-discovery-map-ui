@@ -1,7 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 
-from camera_discovery_map_ui.artifacts import load_artifacts
+from camera_discovery_ui.artifacts import load_artifacts
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
