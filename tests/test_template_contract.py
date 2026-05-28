@@ -21,7 +21,7 @@ def test_template_has_no_active_old_geography_overlay_contract():
 
 
 def test_summarization_docs_include_model_provider_and_interval():
-    docs = (files("camera_discovery_map_ui").joinpath("../..") if False else None)
+    docs = (files("camera_discovery_ui").joinpath("../..") if False else None)
     text = open("docs/summarization_contract.md", encoding="utf-8").read()
     assert "summarizer.provider" in text
     assert "summarizer.model" in text
