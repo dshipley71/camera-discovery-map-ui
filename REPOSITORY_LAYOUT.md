@@ -11,6 +11,7 @@ camera-discovery-map-ui/
 
   agents/                      # focused agent ownership documents
   docs/                        # artifact, media, summarization, and development docs
+  notebooks/                   # Colab notebooks for running the map UI
   src/camera_discovery_map_ui/  # importable Python package
   tests/                       # local deterministic tests and fixtures
 ```

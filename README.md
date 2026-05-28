@@ -14,6 +14,17 @@ This repository intentionally does **not** make `camera-discovery` a Python depe
 - Classify media types without network access.
 - Document future on-demand video summarization without faking summaries.
 
+
+## Colab notebook
+
+A Colab-ready notebook is included at:
+
+```text
+notebooks/camera_discovery_map_ui_colab.ipynb
+```
+
+The notebook installs the package, builds the sample fixture map, displays `map.html` through a local Colab HTTP server, accepts an uploaded camera-discovery artifact ZIP, and downloads the generated review-map output.
+
 ## CLI
 
 ```bash
