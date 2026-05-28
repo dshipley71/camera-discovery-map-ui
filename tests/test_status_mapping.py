@@ -1,4 +1,4 @@
-from camera_discovery_map_ui.status import normalize_status
+from camera_discovery_ui.status import normalize_status
 
 
 def test_status_mapping_live_dead_unknown():
