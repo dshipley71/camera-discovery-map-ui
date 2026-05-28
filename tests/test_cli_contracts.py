@@ -3,7 +3,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from camera_discovery_map_ui.cli import app
+from camera_discovery_ui.cli import app
 
 FIXTURES = Path(__file__).parent / "fixtures"
 runner = CliRunner()
