@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from camera_discovery_map_ui.artifacts import load_artifacts
-from camera_discovery_map_ui.bundle import build_bundle
+from camera_discovery_ui.artifacts import load_artifacts
+from camera_discovery_ui.bundle import build_bundle
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
