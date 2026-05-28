@@ -1,0 +1,2 @@
+name,camera_type,media_type,stream_url,validation_status,scope_status,latitude,longitude
+Fixture CSV Unmapped,public,mp4,https://fixture.invalid/video.mp4,offline_http,review,,

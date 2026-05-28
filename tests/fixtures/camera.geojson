@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.0,
+          40.0
+        ]
+      },
+      "properties": {
+        "name": "Fixture Camera 1",
+        "camera_type": "traffic",
+        "media_type": "hls",
+        "stream_url": "https://fixture.invalid/stream.m3u8",
+        "validation_status": "active_live_verified",
+        "trust_level": "trusted",
+        "scope_status": "accepted",
+        "target_label": "Fixture Target"
+      }
+    }
+  ]
+}

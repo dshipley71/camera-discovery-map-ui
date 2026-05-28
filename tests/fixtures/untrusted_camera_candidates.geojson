@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.0,
+          41.0
+        ]
+      },
+      "properties": {
+        "name": "Fixture Candidate 1",
+        "camera_type": "weather",
+        "media_type": "image_snapshot",
+        "snapshot_url": "https://fixture.invalid/snapshot.jpg",
+        "validation_status": "not_validated",
+        "scope_status": "review",
+        "review_required": true
+      }
+    }
+  ]
+}
