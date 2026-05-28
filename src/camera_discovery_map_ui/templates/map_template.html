@@ -4,178 +4,1058 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Camera Discovery Map UI</title>
+
+  <!-- Leaflet core -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
+
+  <!-- MarkerCluster -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
+  <!-- Leaflet.heat -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+
+  <!-- HLS.js for browser HLS preview -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
   <style>
-    :root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --red:#f85149; --amber:#e3b341; }
-    * { box-sizing: border-box; }
-    html, body { height:100%; margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-    #header { height:54px; display:flex; align-items:center; gap:12px; padding:0 14px; background:var(--surface); border-bottom:1px solid var(--border); }
-    #title { font-weight:700; color:var(--accent); white-space:nowrap; }
-    #status { color:var(--muted); font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #file-input { display:none; }
-    button, .button { background:#1f6feb; color:#fff; border:0; border-radius:6px; padding:6px 10px; font-weight:600; cursor:pointer; }
-    button:disabled { background:#30363d; color:var(--muted); cursor:not-allowed; }
-    #layout { display:flex; height:calc(100% - 54px); }
-    #sidebar { width:320px; background:var(--surface); border-right:1px solid var(--border); overflow:auto; padding:14px; }
-    #map { flex:1; min-width:0; }
-    .section { margin-bottom:18px; }
-    .label { font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:700; letter-spacing:.08em; margin-bottom:8px; }
-    .legend-row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:13px; color:var(--muted); }
-    .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
-    .green { background:var(--green); } .red { background:var(--red); } .amber { background:var(--amber); }
-    .small { font-size:12px; color:var(--muted); line-height:1.45; }
-    #records { width:100%; border-collapse:collapse; font-size:12px; }
-    #records th, #records td { border-bottom:1px solid var(--border); text-align:left; padding:6px 4px; vertical-align:top; }
-    #records th { color:var(--muted); font-size:11px; }
-    .popup { color:#111827; min-width:280px; max-width:420px; }
-    .popup h3 { margin:0 0 6px; }
-    .meta { width:100%; border-collapse:collapse; font-size:12px; }
-    .meta td { border-top:1px solid #ddd; padding:3px 4px; vertical-align:top; }
-    .meta td:first-child { font-weight:700; width:38%; }
-    .summary-box { background:#f3f4f6; border:1px solid #d1d5db; padding:8px; border-radius:6px; margin-top:8px; }
-    select { padding:5px; border-radius:6px; border:1px solid #bbb; }
-    a { color:#58a6ff; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --muted:     #8b949e;
+      --text:      #e6edf3;
+      --accent:    #58a6ff;
+      --blue-bg:   #1f6feb;
+      --green:     #3fb950;
+      --amber:     #e3b341;
+      --red:       #f85149;
+      --green-bg:  #1a4731;
+      --amber-bg:  #3d2f06;
+      --red-bg:    #3d1412;
+      --radius:    6px;
+    }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+
+    /* ─── HEADER ─── */
+    #header {
+      height: 50px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 14px; flex-shrink: 0;
+      position: relative; z-index: 1000;
+    }
+    #header-title {
+      font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap;
+    }
+    #header-title span { color: var(--text); font-weight: 400; }
+
+    #file-status {
+      flex: 1; min-width: 0;
+      font-size: 12px; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #file-status strong { color: var(--text); }
+
+    .stat-pill {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0;
+    }
+    .stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .stat-pill strong { color: var(--text); }
+
+    #btn-load {
+      background: var(--blue-bg); color: #fff; border: none;
+      border-radius: var(--radius); padding: 5px 13px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; transition: background .15s;
+    }
+    #btn-load:hover { background: #388bfd; }
+    #file-input { display: none; }
+
+    /* ─── LAYOUT ─── */
+    #layout { display: flex; height: calc(100vh - 50px); }
+
+    /* ─── SIDEBAR ─── */
+    #sidebar {
+      width: 272px; background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+    }
+    #sb-scroll {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 15px;
+    }
+
+    .s-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
+    }
+
+    /* Search */
+    #search {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 6px 10px;
+      color: var(--text); font-size: 13px; outline: none; transition: border-color .2s;
+    }
+    #search:focus { border-color: var(--accent); }
+    #search::placeholder { color: #484f58; }
+
+    /* Chips */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      background: #21262d; border: 1px solid var(--border);
+      border-radius: 20px; padding: 3px 10px;
+      font-size: 11px; color: var(--muted);
+      cursor: pointer; user-select: none;
+      transition: all .15s; white-space: nowrap;
+    }
+    .chip:hover                { border-color: var(--accent); color: var(--accent); }
+    .chip.on                   { background: var(--blue-bg); border-color: var(--blue-bg); color: #fff; }
+    .chip.on-live              { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .chip.on-unknown           { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+    .chip.on-dead              { background: var(--red-bg);   border-color: var(--red);   color: var(--red); }
+
+    /* Toggles */
+    .toggle-row { display: flex; flex-direction: column; gap: 6px; }
+    .toggle-item {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--muted); cursor: pointer; padding: 2px 0;
+    }
+    .toggle-item:hover { color: var(--text); }
+    .tog {
+      width: 32px; height: 18px; background: var(--border);
+      border-radius: 9px; position: relative; transition: background .2s; flex-shrink: 0;
+    }
+    .tog::after {
+      content: ''; position: absolute; width: 12px; height: 12px;
+      border-radius: 50%; background: #fff; top: 3px; left: 3px;
+      transition: transform .2s;
+    }
+    .tog.on { background: var(--blue-bg); }
+    .tog.on::after { transform: translateX(14px); }
+
+    /* Legend */
+    .legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-em { width: 16px; text-align: center; font-size: 12px; flex-shrink: 0; }
+    .tier-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; flex-shrink: 0; vertical-align: middle; }
+
+    /* Camera list */
+    #cam-list { display: flex; flex-direction: column; gap: 4px; }
+    .cam-row {
+      background: #21262d; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 7px 9px;
+      cursor: pointer; transition: border-color .15s;
+    }
+    .cam-row:hover { border-color: var(--accent); }
+    .cam-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+    .cam-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+    .sbadge { font-size: 10px; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
+    .sb-live    { background: var(--green-bg); color: var(--green); }
+    .sb-unknown { background: var(--amber-bg); color: var(--amber); }
+    .sb-dead    { background: var(--red-bg);   color: var(--red); }
+    #no-results { text-align: center; font-size: 12px; color: #484f58; padding: 16px 0; display: none; }
+    #more-msg   { text-align: center; font-size: 11px; color: #484f58; padding: 8px 0; display: none; }
+
+    /* ─── MAP ─── */
+    #map { flex: 1; background: var(--bg); }
+
+    /* ─── POPUPS ─── */
+    .leaflet-popup-content-wrapper {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.6); color: var(--text);
+    }
+    .leaflet-popup-tip { background: var(--surface); }
+    .leaflet-popup-content { margin: 12px 14px; min-width: 260px; max-width: 350px; }
+    .p-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; line-height: 1.35; }
+    .p-city  { font-size: 11px; color: var(--muted); margin-bottom: 9px; }
+    .p-grid  { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 11px; margin-bottom: 10px; }
+    .p-k { color: var(--muted); }
+    .p-v { color: var(--text); word-break: break-all; }
+    .p-watch {
+      display: block; text-align: center; background: var(--blue-bg); color: #fff;
+      text-decoration: none; padding: 6px; border-radius: 5px;
+      font-size: 12px; font-weight: 600; transition: background .15s; margin-bottom: 5px;
+    }
+    .p-watch:hover { background: #388bfd; }
+    .p-src  { font-size: 10px; color: #484f58; text-align: center; }
+    .p-note { font-size: 10px; color: #484f58; text-align: center; margin-top: 3px; }
+    .p-reflink { color: var(--accent); font-size: 10px; text-decoration: none; }
+    .p-reflink:hover { text-decoration: underline; }
+    .blocked-tip { background: #161b22 !important; border: 1px solid #f85149 !important; border-radius: 6px !important; color: var(--text) !important; }
+    .blocked-tip::before { border-top-color: #f85149 !important; }
+
+    /* ── Empty-state overlay ── */
+    #empty-state {
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13,17,23,.82);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      pointer-events: all;
+    }
+    #empty-state.hidden { display: none; }
+    .es-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      padding: 40px 48px;
+      text-align: center;
+      max-width: 420px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.7);
+    }
+    .es-icon { font-size: 52px; margin-bottom: 16px; line-height: 1; }
+    .es-title {
+      font-size: 18px; font-weight: 700;
+      color: var(--text); margin-bottom: 10px;
+    }
+    .es-body {
+      font-size: 13px; color: var(--muted);
+      line-height: 1.65; margin-bottom: 24px;
+    }
+    .es-body code {
+      background: #0d1117; border: 1px solid #30363d;
+      border-radius: 4px; padding: 1px 6px;
+      font-family: 'Consolas', monospace; color: #e6edf3;
+      font-size: 12px;
+    }
+    .es-btn {
+      display: inline-block;
+      background: var(--blue-bg); color: #fff;
+      border: none; border-radius: 7px;
+      padding: 10px 26px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+    }
+    .es-btn:hover { background: #388bfd; }
+    .es-hint {
+      margin-top: 14px; font-size: 11px; color: #484f58;
+    }
+
+    /* drag-drop zone inside empty-state */
+    #es-drop-zone {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 20px 24px; margin-bottom: 16px;
+      transition: border-color .2s, background .2s; cursor: default;
+    }
+    #es-drop-zone.drag-over {
+      border-color: var(--accent); background: rgba(88,166,255,.06);
+    }
+    .es-drop-icon { font-size: 26px; margin-bottom: 6px; line-height: 1; }
+    .es-drop-label { font-size: 13px; color: var(--text); margin-bottom: 8px; }
+    .es-drop-hint  { font-size: 11px; color: #484f58; margin-bottom: 10px; }
+
+    /* divider */
+    .es-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 10px; color: #484f58; text-transform: uppercase;
+      letter-spacing: .8px; margin-bottom: 12px;
+    }
+    .es-divider::before, .es-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* server command block */
+    .es-cmd {
+      display: inline-block; background: #0d1117; border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 14px; font-family: 'Consolas', monospace;
+      font-size: 13px; color: #e6edf3; margin-bottom: 6px; word-break: break-all;
+    }
+    .es-copy-btn {
+      display: block; margin: 0 auto 4px; background: transparent;
+      border: 1px solid var(--border); border-radius: 5px;
+      color: var(--muted); font-size: 11px; padding: 4px 12px;
+      cursor: pointer; transition: all .15s;
+    }
+    .es-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Feed preview in popup ── */
+    .p-preview {
+      width: 100%; margin-bottom: 9px;
+      border-radius: 5px; overflow: hidden;
+      background: #0a0a0a; line-height: 0;
+      border: 1px solid #30363d;
+      position: relative; cursor: pointer;
+    }
+    .p-preview img {
+      width: 100%; height: auto;
+      max-height: 185px; object-fit: cover; display: block;
+    }
+    .p-preview iframe {
+      width: 100%; height: 185px; border: none; display: block;
+    }
+    /* YouTube play overlay */
+    .p-yt-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.35); transition: background .15s;
+    }
+    .p-yt-overlay:hover { background: rgba(0,0,0,.18); }
+    .p-yt-btn {
+      width: 56px; height: 40px;
+      background: #ff0000; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,.6);
+      transition: transform .15s;
+    }
+    .p-yt-overlay:hover .p-yt-btn { transform: scale(1.08); }
+    .p-yt-btn svg { width: 22px; height: 22px; fill: #fff; }
+    .p-preload {
+      padding: 28px 0; text-align: center;
+      font-size: 11px; color: #484f58; line-height: 1.4;
+    }
+    .p-refresh-ts {
+      font-size: 9px; color: #484f58;
+      text-align: right; padding: 1px 3px 5px;
+    }
+    /* YouTube watch + static refresh buttons */
+    .p-watch-yt {
+      display: flex; gap: 6px; margin-bottom: 5px;
+    }
+    .p-watch-yt a {
+      flex: 1; text-align: center; padding: 6px 4px;
+      border-radius: 5px; font-size: 12px; font-weight: 600;
+      text-decoration: none; transition: background .15s;
+    }
+    .p-btn-yt   { background: #ff0000; color: #fff; }
+    .p-btn-yt:hover { background: #cc0000; }
+    .p-btn-full { background: var(--blue-bg); color: #fff; }
+    .p-btn-full:hover { background: #388bfd; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ─── TABLE VIEW BUTTON ─── */
+    #btn-table {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 5px 13px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; transition: all .15s;
+    }
+    #btn-table:hover { border-color: var(--accent); color: var(--accent); }
+    #btn-table.active { background: var(--blue-bg); border-color: var(--blue-bg); color: #fff; }
+
+    /* ─── TABLE PANEL ─── */
+    #table-panel {
+      flex: 1; display: none; flex-direction: column; overflow: hidden; background: var(--bg);
+    }
+    #table-panel.active { display: flex; }
+
+    #tp-toolbar {
+      display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    #tp-search {
+      width: 240px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 6px 10px; color: var(--text);
+      font-size: 12px; outline: none; transition: border-color .2s;
+    }
+    #tp-search:focus { border-color: var(--accent); }
+    #tp-search::placeholder { color: #484f58; }
+
+    .tp-sel {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text); font-size: 12px; padding: 5px 8px; outline: none;
+      cursor: pointer; transition: border-color .2s;
+    }
+    .tp-sel:focus { border-color: var(--accent); }
+
+    #tp-count {
+      font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0;
+    }
+    #tp-export {
+      margin-left: auto; background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--muted); font-size: 12px;
+      padding: 5px 12px; cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    #tp-export:hover { border-color: var(--accent); color: var(--accent); }
+
+    #tp-wrap { flex: 1; overflow: auto; }
+
+    #tp-table {
+      width: 100%; border-collapse: collapse; font-size: 12px; min-width: 900px;
+    }
+    #tp-table thead {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface); border-bottom: 2px solid var(--border);
+    }
+    #tp-table th {
+      padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700;
+      letter-spacing: .6px; text-transform: uppercase; color: var(--muted);
+      white-space: nowrap; cursor: pointer; user-select: none;
+      border-right: 1px solid var(--border);
+    }
+    #tp-table th:last-child { border-right: none; cursor: default; }
+    #tp-table th:not(.no-sort):hover { color: var(--accent); }
+    #tp-table th.sort-asc::after  { content: ' ↑'; color: var(--accent); }
+    #tp-table th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+    #tp-table th.no-sort { cursor: default; }
+    #tp-table th.no-sort:hover { color: var(--muted); }
+
+    #tp-table tbody tr { border-bottom: 1px solid #21262d; transition: background .1s; }
+    #tp-table tbody tr:hover { background: #161b22; }
+    #tp-table td {
+      padding: 7px 12px; vertical-align: middle; color: var(--text);
+      border-right: 1px solid #21262d;
+    }
+    #tp-table td:last-child { border-right: none; }
+
+    .tp-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 10px; font-weight: 600; white-space: nowrap;
+    }
+    .tp-live    { background: var(--green-bg); color: var(--green);  border: 1px solid var(--green); }
+    .tp-unknown { background: var(--amber-bg); color: var(--amber);  border: 1px solid var(--amber); }
+    .tp-dead    { background: var(--red-bg);   color: var(--red);    border: 1px solid var(--red); }
+    .tp-high    { background: #1a4731; color: #3fb950; border: 1px solid #2ea043; }
+    .tp-medium  { background: #3d2f06; color: #e3b341; border: 1px solid #9e6a03; }
+    .tp-low     { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+
+    .tp-label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tp-src   { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+
+    .tp-link {
+      color: var(--accent); text-decoration: none; font-size: 11px; white-space: nowrap;
+    }
+    .tp-link:hover { text-decoration: underline; }
+
+    .tp-map-btn {
+      background: transparent; border: 1px solid var(--border); border-radius: 4px;
+      color: var(--muted); font-size: 11px; padding: 3px 8px; cursor: pointer;
+      transition: all .15s; white-space: nowrap;
+    }
+    .tp-map-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    #tp-empty {
+      padding: 60px; text-align: center; color: #484f58; font-size: 13px; display: none;
+    }
+
+    /* Camera-discovery popup media and summarization controls */
+    .p-preview { margin: 8px 0 10px; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; background: #0d1117; }
+    .p-preview img, .p-preview video, .p-preview iframe { display:block; width:100%; max-height:190px; object-fit:cover; background:#000; }
+    .p-btn-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .p-btn { flex:1 1 auto; min-width:90px; text-align:center; background:#21262d; border:1px solid var(--border); color:var(--text); text-decoration:none; padding:6px 8px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer; }
+    .p-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .p-btn[disabled] { opacity:.48; cursor:not-allowed; color:var(--muted); }
+    .p-summary { border-top:1px solid var(--border); margin-top:10px; padding-top:9px; font-size:11px; color:var(--muted); }
+    .p-summary select { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:5px; padding:4px 6px; font-size:11px; margin-left:5px; }
+    .p-small { color:#484f58; font-size:10px; line-height:1.35; margin-top:4px; }
+
   </style>
 </head>
 <body>
-  <div id="header">
-    <div id="title">Camera Discovery <span style="color:var(--text); font-weight:400">Map UI</span></div>
-    <div id="status">Loading <strong>camera_map_bundle.json</strong> if available. You can also load a JSON or GeoJSON file manually.</div>
-    <button onclick="document.getElementById('file-input').click()">Load File</button>
-    <input id="file-input" type="file" accept=".json,.geojson,application/json"/>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="header-title">📹 <span>Camera Discovery Map UI</span></div>
+
+  <div id="file-status">
+    📂 <strong id="active-file">loading…</strong>
+    &nbsp;—&nbsp;<span id="active-count">0</span> cameras
   </div>
-  <div id="layout">
-    <aside id="sidebar">
-      <div class="section">
-        <div class="label">Status Legend</div>
-        <div class="legend-row"><span class="dot green"></span>Live</div>
-        <div class="legend-row"><span class="dot red"></span>Dead / unavailable</div>
-        <div class="legend-row"><span class="dot amber"></span>Unknown / not validated</div>
-      </div>
-      <div class="section">
-        <div class="label">Media Types</div>
-        <div class="small">HLS, MP4, WebM, OGG, MJPEG, image snapshots, web embeds, and unknown media are represented as separate media classes. Preview failure is not validation failure.</div>
-      </div>
-      <div class="section">
-        <div class="label">Video Summary</div>
-        <div class="small">Summarization is disabled in static mode. Start a future review server with a summarization endpoint to enable on-demand summaries.</div>
-      </div>
-      <div class="section">
-        <div class="label">Records</div>
-        <table id="records"><thead><tr><th>Status</th><th>Name</th><th>Media</th><th>Coords</th></tr></thead><tbody></tbody></table>
-      </div>
-    </aside>
-    <main id="map"></main>
+
+  <div class="stat-pill">
+    <div class="stat-dot" style="background:var(--green)"></div>
+    Live: <strong id="n-live">0</strong>
   </div>
-<script>
-const map = L.map('map', { zoomControl: true }).setView([20, 0], 2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-let markers = [];
+  <div class="stat-pill">
+    <div class="stat-dot" style="background:var(--amber)"></div>
+    Unknown: <strong id="n-unknown">0</strong>
+  </div>
+  <div class="stat-pill">
+    <div class="stat-dot" style="background:var(--red)"></div>
+    Dead: <strong id="n-dead">0</strong>
+  </div>
 
-function colorForStatus(status) {
-  if (status === 'live') return '#3fb950';
-  if (status === 'dead') return '#f85149';
-  return '#e3b341';
-}
+  <button id="btn-table">📋 Table</button>
+  <button id="btn-load">📂 Load Data</button>
+  <input type="file" id="file-input" accept=".geojson,.json,.zip"/>
+</div>
 
-function esc(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
+<!-- MAIN LAYOUT -->
+<div id="layout">
 
-function mediaPreview(record) {
-  const url = record.stream_url || record.snapshot_url || record.thumbnail_url || '';
-  const media = record.media_type || 'unknown';
-  if (!url) return '<div class="small">No preview URL available.</div>';
-  if (media === 'image_snapshot' || media === 'mjpeg') return `<img src="${esc(url)}" alt="preview" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #ddd;border-radius:6px"/>`;
-  if (['mp4','webm','ogg'].includes(media)) return `<video controls muted preload="metadata" src="${esc(url)}" style="width:100%;max-height:220px"></video>`;
-  if (media === 'hls') return `<video controls muted preload="metadata" data-hls-src="${esc(url)}" style="width:100%;max-height:220px"></video>`;
-  return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open media</a>`;
-}
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sb-scroll">
 
-function popupHtml(record) {
-  const intervalOptions = [15,30,60,120,240,300].map(s => `<option value="${s}">${s}s</option>`).join('');
-  return `<div class="popup">
-    <h3>${esc(record.label || record.record_id || 'Camera record')}</h3>
-    ${mediaPreview(record)}
-    <table class="meta">
-      <tr><td>Status</td><td>${esc(record.status)}</td></tr>
-      <tr><td>Validation detail</td><td>${esc(record.validation_status || 'unknown')}</td></tr>
-      <tr><td>Camera type</td><td>${esc(record.camera_type || 'unknown')}</td></tr>
-      <tr><td>Media type</td><td>${esc(record.media_type || 'unknown')}</td></tr>
-      <tr><td>Trust</td><td>${esc(record.trust_level || 'unknown')}</td></tr>
-      <tr><td>Scope</td><td>${esc(record.scope_status || 'unknown')}</td></tr>
-      <tr><td>Coordinates</td><td>${esc(record.latitude)}, ${esc(record.longitude)}</td></tr>
-      <tr><td>Source artifact</td><td>${esc(record.source_artifact || '')}</td></tr>
-    </table>
-    <div class="summary-box">
-      <strong>Video Summary</strong><br/>
-      <label>Interval <select disabled>${intervalOptions}</select></label>
-      <button disabled title="Static mode does not include a summarization backend">Summarize Video</button>
-      <div class="small">Static mode: no summarization endpoint configured.</div>
+      <!-- Search -->
+      <div>
+        <div class="s-label">Search</div>
+        <input id="search" type="text" placeholder="Camera, location, source, status…"/>
+      </div>
+
+      <!-- Status filter -->
+      <div>
+        <div class="s-label">Status</div>
+        <div class="chip-row">
+          <span class="chip on-live on"    data-f="status" data-v="live">● Live</span>
+          <span class="chip on-unknown on" data-f="status" data-v="unknown">● Unknown</span>
+          <span class="chip on-dead"       data-f="status" data-v="dead">● Dead</span>
+        </div>
+      </div>
+
+      <!-- Confidence filter -->
+      <div>
+        <div class="s-label">Trust / Confidence</div>
+        <div class="chip-row">
+          <span class="chip on" data-f="score" data-v="high">Trusted / High</span>
+          <span class="chip on" data-f="score" data-v="medium">Untrusted / Review</span>
+          <span class="chip on" data-f="score" data-v="low">Unknown / Low</span>
+        </div>
+      </div>
+
+      <!-- Feed type filter — built dynamically -->
+      <div>
+        <div class="s-label">Media Type</div>
+        <div class="chip-row" id="feedtype-chips"></div>
+      </div>
+
+      <!-- Continent filter — built dynamically -->
+      <div>
+        <div class="s-label">Stage / Scope</div>
+        <div class="chip-row" id="continent-chips"></div>
+      </div>
+
+      <!-- Quick view -->
+      <div>
+        <div class="s-label">Quick View</div>
+        <div class="chip-row">
+          <span class="chip" id="q-all">All</span>
+          <span class="chip" id="q-live-only">Live Only</span>
+          <span class="chip" id="q-hq">Trusted / High</span>
+        </div>
+      </div>
+
+      <!-- Layer toggles -->
+      <div>
+        <div class="s-label">Layers</div>
+        <div class="toggle-row">
+          <div class="toggle-item" id="lbl-heat">
+            <span>Heatmap overlay</span>
+            <div class="tog" id="tog-heat"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div>
+        <div class="s-label">Status Legend</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div>Live</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--amber)"></div>Unknown</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div>Dead / offline</div>
+        <div class="s-label" style="margin-top:10px">Feed Type Legend</div>
+        <div class="legend-row"><div class="legend-em">📹</div>MJPEG / HLS / direct stream</div>
+        <div class="legend-row"><div class="legend-em">🖥️</div>iframe embed / JS player</div>
+        <div class="legend-row"><div class="legend-em">📸</div>Static image refresh</div>
+        <div class="legend-row"><div class="legend-em">▶️</div>Native video / YouTube / web player</div>
+        <div class="s-label" style="margin-top:10px">Coordinate Source</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--accent);border-radius:3px"></div>Source-provided or validated coordinate</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--amber);border-radius:3px"></div>LLM-inferred / review coordinate</div>
+      </div>
+
+      <!-- Camera list -->
+      <div>
+        <div class="s-label">Cameras (<span id="vis-count">0</span>)</div>
+        <div id="cam-list"></div>
+        <div id="no-results">No cameras match your filters.</div>
+        <div id="more-msg"></div>
+      </div>
+
     </div>
-  </div>`;
-}
+  </div><!-- /sidebar -->
 
-function initHlsInPopup(popup) {
-  popup.getElement()?.querySelectorAll('video[data-hls-src]').forEach(video => {
-    const src = video.getAttribute('data-hls-src');
-    if (video.canPlayType('application/vnd.apple.mpegurl')) video.src = src;
-    else if (window.Hls && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(src); hls.attachMedia(video); }
+  <!-- MAP -->
+  <div id="map"></div>
+
+  <!-- TABLE PANEL (replaces map area when active) -->
+  <div id="table-panel">
+    <div id="tp-toolbar">
+      <input id="tp-search" type="text" placeholder="🔍 Search rows…"/>
+      <select id="tp-status-sel" class="tp-sel">
+        <option value="">All Status</option>
+        <option value="live">● Live</option>
+        <option value="unknown">● Unknown</option>
+        <option value="dead">● Dead</option>
+      </select>
+      <select id="tp-feed-sel" class="tp-sel">
+        <option value="">All Media Types</option>
+      </select>
+      <select id="tp-cont-sel" class="tp-sel">
+        <option value="">All Stages</option>
+      </select>
+      <span id="tp-count">0 cameras</span>
+      <button id="tp-export">⬇ Export CSV</button>
+    </div>
+    <div id="tp-wrap">
+      <table id="tp-table">
+        <thead>
+          <tr>
+            <th data-col="status">Status</th>
+            <th data-col="label">Label</th>
+            <th data-col="city">Location</th>
+            <th data-col="region">Target</th>
+            <th data-col="country">Trust</th>
+            <th data-col="continent">Stage</th>
+            <th data-col="feed_type">Media Type</th>
+            <th data-col="legitimacy_score">Confidence</th>
+            <th data-col="last_verified">Verified</th>
+            <th data-col="source_directory">Source</th>
+            <th class="no-sort">Watch</th>
+            <th class="no-sort">↗ Map</th>
+          </tr>
+        </thead>
+        <tbody id="tp-body"></tbody>
+      </table>
+      <div id="tp-empty">No cameras match the current filters.</div>
+    </div>
+  </div>
+
+  <!-- Empty-state overlay: shown when no GeoJSON is loaded -->
+  <div id="empty-state">
+    <div class="es-card">
+      <div class="es-icon">🗺️</div>
+      <div class="es-title">Load camera data</div>
+
+      <!-- Option A: drag and drop (always works) -->
+      <div id="es-drop-zone">
+        <div class="es-drop-icon">⬇</div>
+        <div class="es-drop-label">Drop <code>camera_map_bundle.json</code>, GeoJSON, or artifacts data here</div>
+        <div class="es-drop-hint">or</div>
+        <button class="es-btn" id="es-load-btn">📂 Choose file…</button>
+      </div>
+
+      <!-- Option B: local server (auto-load) -->
+      <div class="es-divider">
+        <span>auto-load via local server</span>
+      </div>
+      <div class="es-body" style="margin-bottom:10px">
+        Browsers block direct file access when opened from disk.<br>
+        Serve the folder with one command to enable auto-load:
+      </div>
+      <div class="es-cmd" id="es-cmd-text">python3 -m http.server 8000</div>
+      <button class="es-copy-btn" id="es-copy-btn" title="Copy command">📋 Copy</button>
+      <div class="es-body" style="margin-top:8px;font-size:11px">
+        Then open <code>http://localhost:8000/map.html</code>
+      </div>
+
+      <div class="es-hint" style="margin-top:16px">Files stay on your device — nothing is uploaded.</div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<script>
+// Camera Discovery Map UI - visual baseline derived from the supplied map_template.html.
+// The script below keeps the template look-and-feel while adapting the data contract
+// to camera-discovery artifact bundles, GeoJSON files, and normalized records.
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function first(...vals) {
+  for (const v of vals) {
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return '';
+}
+function asNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function statusColor(s) {
+  return s === 'live' ? '#3fb950' : s === 'dead' ? '#f85149' : '#e3b341';
+}
+function scoreEmoji(s) {
+  return s === 'high' ? '✅' : s === 'medium' ? '⚠️' : '❓';
+}
+function feedEmoji(ft) {
+  if (!ft) return '📹';
+  const t = String(ft).toLowerCase();
+  if (t.includes('youtube')) return '▶️';
+  if (t.includes('image') || t.includes('snapshot') || t.includes('static') || t.includes('refresh')) return '📸';
+  if (t.includes('mjpeg') || t.includes('mjpg')) return '📹';
+  if (t.includes('hls') || t.includes('m3u8')) return '📹';
+  if (t.includes('mp4') || t.includes('webm') || t.includes('ogg') || t.includes('video')) return '▶️';
+  if (t.includes('iframe') || t.includes('web') || t.includes('embed')) return '🖥️';
+  return '📹';
+}
+function mediaTypeFromUrl(url, hint) {
+  const h = String(hint || '').toLowerCase();
+  const u = String(url || '').split('?')[0].toLowerCase();
+  if (h.includes('hls') || u.endsWith('.m3u8')) return 'hls';
+  if (h.includes('mjpeg') || h.includes('mjpg') || u.endsWith('.mjpeg') || u.endsWith('.mjpg')) return 'mjpeg';
+  if (h.includes('mp4') || u.endsWith('.mp4')) return 'mp4';
+  if (h.includes('webm') || u.endsWith('.webm')) return 'webm';
+  if (h.includes('ogg') || h.includes('ogv') || u.endsWith('.ogg') || u.endsWith('.ogv')) return 'ogg';
+  if (h.includes('image') || h.includes('snapshot') || /\.(jpg|jpeg|png|webp|gif)$/i.test(u)) return 'image_snapshot';
+  if (h.includes('embed') || h.includes('iframe') || h.includes('web')) return 'web_embed';
+  return h || 'unknown';
+}
+function normalizeStatus(p) {
+  const raw = String(first(p.status, p.validation_status, p.status_detail, p.camera_status, '')).toLowerCase();
+  if (['live','active_live_verified','active_live_unknown','active_live_dynamic','active_live_static_view','active_image_snapshot_refreshing','active_prerecorded_loop_short','active_prerecorded_loop_long'].some(x => raw.includes(x))) return 'live';
+  if (['dead','offline','restricted','forbidden','decode_failed','dead_link','not_image'].some(x => raw.includes(x))) return 'dead';
+  return 'unknown';
+}
+function trustScore(p) {
+  const t = String(first(p.trust_level, p.output_policy, p.legitimacy_score, '')).toLowerCase();
+  if (t.includes('trusted') || t === 'high') return 'high';
+  if (t.includes('untrusted') || t.includes('review') || t === 'medium') return 'medium';
+  return 'low';
+}
+function normalizeRecord(row, idx, sourceName) {
+  const p = Object.assign({}, row || {});
+  const streamUrl = first(p.stream_url, p.direct_stream_url, p.media_url, p.url, p.snapshot_url, p.thumbnail_url);
+  const media = mediaTypeFromUrl(streamUrl, first(p.media_type, p.feed_type, p.asset_role));
+  const label = first(p.label, p.name, p.title, p.camera_name, p.camera_id, p.record_id, `Camera ${idx + 1}`);
+  const lat = asNum(first(p.latitude, p.lat));
+  const lon = asNum(first(p.longitude, p.lon, p.lng));
+  return Object.assign({}, p, {
+    id: first(p.id, p.record_id, p.camera_id, `camera-${idx}`),
+    label,
+    city: first(p.city, p.location_label, p.location_display, p.location_text, p.route, ''),
+    region: first(p.region, p.target_label, p.county, p.district, ''),
+    country: first(p.country, p.trust_level, p.output_policy, ''),
+    continent: first(p.record_stage, p.scope_status, p.geocode_status, 'candidate'),
+    feed_type: media,
+    camera_type: first(p.camera_type, p.raw_camera_type, 'unknown'),
+    legitimacy_score: trustScore(p),
+    status: normalizeStatus(p),
+    status_detail: first(p.status_detail, p.validation_status, p.camera_status, 'unknown'),
+    source_directory: first(p.source_directory, p.source_artifact, sourceName, p.source_url, ''),
+    url: first(p.url, p.source_url, streamUrl),
+    direct_stream_url: first(p.direct_stream_url, p.stream_url, p.media_url, ''),
+    stream_url: first(p.stream_url, p.direct_stream_url, p.media_url, ''),
+    snapshot_url: first(p.snapshot_url, p.thumbnail_url, ''),
+    thumbnail_url: first(p.thumbnail_url, p.snapshot_url, ''),
+    last_verified: first(p.last_verified, p.summarized_at, ''),
+    latitude: lat,
+    longitude: lon,
+    has_coordinates: lat !== null && lon !== null,
+    _source_name: sourceName || ''
   });
 }
-
-function renderBundle(bundle) {
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
-  const rows = bundle.rows || [];
-  const tbody = document.querySelector('#records tbody');
-  tbody.innerHTML = '';
-  const bounds = [];
-  for (const record of rows) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${esc(record.status)}</td><td>${esc(record.label)}</td><td>${esc(record.media_type)}</td><td>${record.has_coordinates ? 'yes' : 'no'}</td>`;
-    tbody.appendChild(tr);
-    if (!record.has_coordinates) continue;
-    const marker = L.circleMarker([record.latitude, record.longitude], { radius: 7, color: colorForStatus(record.status), fillColor: colorForStatus(record.status), fillOpacity: .85 });
-    marker.bindPopup(popupHtml(record), { maxWidth: 460 });
-    marker.on('popupopen', e => initHlsInPopup(e.popup));
-    marker.addTo(map);
-    markers.push(marker);
-    bounds.push([record.latitude, record.longitude]);
+function featureFromRecord(record, idx) {
+  const p = normalizeRecord(record, idx, record && record.source_artifact);
+  if (!p.has_coordinates) return null;
+  return { type: 'Feature', geometry: { type: 'Point', coordinates: [p.longitude, p.latitude] }, properties: p };
+}
+function normalizeFeature(feature, idx, sourceName) {
+  const props = Object.assign({}, feature.properties || {});
+  const coords = feature.geometry && Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+  props.longitude = first(props.longitude, props.lon, props.lng, coords[0]);
+  props.latitude = first(props.latitude, props.lat, coords[1]);
+  const p = normalizeRecord(props, idx, sourceName);
+  return { type: 'Feature', geometry: { type:'Point', coordinates:[p.longitude, p.latitude] }, properties: p };
+}
+function bundleToData(data, filename) {
+  if (data && data.schema_version && data.rows) {
+    const rows = data.rows.map((r, i) => normalizeRecord(r, i, r.source_artifact || 'bundle'));
+    const features = rows.map((r, i) => featureFromRecord(r, i)).filter(Boolean);
+    return { rows, features, filename };
   }
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
-  document.getElementById('status').innerHTML = `Loaded <strong>${rows.length}</strong> records; mapped <strong>${bounds.length}</strong>.`;
-}
-
-function bundleFromGeoJson(geojson) {
-  const rows = (geojson.features || []).map((f, i) => {
-    const p = f.properties || {};
-    const c = f.geometry && f.geometry.coordinates || [];
-    return { ...p, record_id: p.record_id || `manual-${i}`, label: p.label || p.name || p.title || `Feature ${i+1}`, longitude: c[0], latitude: c[1], has_coordinates: Number.isFinite(c[0]) && Number.isFinite(c[1]), status: p.status || 'unknown', media_type: p.media_type || 'unknown', source_artifact: p.source_artifact || 'manual_upload' };
-  });
-  return { rows };
-}
-
-async function loadDefault() {
-  try {
-    const res = await fetch('camera_map_bundle.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    renderBundle(await res.json());
-  } catch (err) {
-    document.getElementById('status').textContent = 'No camera_map_bundle.json loaded. Use Load File to open JSON or GeoJSON.';
+  if (data && data.type === 'FeatureCollection') {
+    const features = (data.features || [])
+      .filter(f => f && f.geometry && f.geometry.type === 'Point')
+      .map((f, i) => normalizeFeature(f, i, filename));
+    const rows = features.map(f => f.properties);
+    return { rows, features, filename };
   }
+  if (Array.isArray(data)) {
+    const rows = data.map((r, i) => normalizeRecord(r, i, filename));
+    return { rows, features: rows.map((r, i) => featureFromRecord(r, i)).filter(Boolean), filename };
+  }
+  throw new Error('Unsupported data file. Expected camera_map_bundle.json, GeoJSON FeatureCollection, or JSON row array.');
 }
 
-document.getElementById('file-input').addEventListener('change', async ev => {
-  const file = ev.target.files[0];
-  if (!file) return;
-  const data = JSON.parse(await file.text());
-  renderBundle(data.schema_version ? data : bundleFromGeoJson(data));
+const map = L.map('map', {center:[20,10], zoom:3, zoomControl:true});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+  subdomains:'abcd', maxZoom:19
+}).addTo(map);
+const clusters = L.markerClusterGroup({ maxClusterRadius:45, showCoverageOnHover:false, spiderfyOnMaxZoom:true,
+  iconCreateFunction: c => {
+    const n = c.getChildCount(); const sz = n > 99 ? 42 : 34;
+    return L.divIcon({ html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#1f6feb;border:2px solid #58a6ff;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 0 18px rgba(88,166,255,.45)">${n}</div>`, className:'', iconSize:[sz,sz] });
+  }
 });
+map.addLayer(clusters);
+let heatLayer = null;
+let heatActive = false;
+let allFeatures = [];
+let allRows = [];
+let markerById = new Map();
+const F = { status: new Set(['live','unknown','dead']), score: new Set(['high','medium','low']), feedtype: new Set(), continent: new Set(), search:'' };
+let tableSearch = '', tableStatus = '', tableFeed = '', tableCont = '', tableSort = {col:'label', dir:1};
 
-loadDefault();
+function filtered() {
+  return allFeatures.filter(f => {
+    const p = f.properties || {};
+    if (!F.status.has(p.status || 'unknown')) return false;
+    if (!F.score.has(p.legitimacy_score || 'low')) return false;
+    if (F.feedtype.size && !F.feedtype.has(p.feed_type || 'unknown')) return false;
+    if (F.continent.size && !F.continent.has(p.continent || 'candidate')) return false;
+    if (F.search) {
+      const q = F.search.toLowerCase();
+      const h = `${p.label||''} ${p.city||''} ${p.region||''} ${p.country||''} ${p.continent||''} ${p.source_directory||''} ${p.status_detail||''} ${p.camera_type||''}`.toLowerCase();
+      if (!h.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function updateStats() {
+  const counts = {live:0, dead:0, unknown:0};
+  allRows.forEach(p => { counts[p.status || 'unknown'] = (counts[p.status || 'unknown'] || 0) + 1; });
+  document.getElementById('active-count').textContent = allRows.length;
+  document.getElementById('n-live').textContent = counts.live || 0;
+  document.getElementById('n-unknown').textContent = counts.unknown || 0;
+  document.getElementById('n-dead').textContent = counts.dead || 0;
+}
+function render() {
+  const vis = filtered();
+  clusters.clearLayers(); markerById.clear();
+  vis.forEach(f => { const m = makeMarker(f); clusters.addLayer(m); markerById.set(f.properties.id, m); });
+  document.getElementById('vis-count').textContent = vis.length;
+  renderList(vis);
+  refreshHeat(vis);
+  updateStats();
+  renderTable();
+  if (vis.length) {
+    const bounds = L.featureGroup(vis.map(makeMarker)).getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds.pad(0.15));
+  }
+}
+function renderList(vis) {
+  const list = document.getElementById('cam-list'), noRes = document.getElementById('no-results'), moreMsg = document.getElementById('more-msg');
+  list.innerHTML = '';
+  noRes.style.display = vis.length ? 'none' : 'block';
+  const shown = vis.slice(0, 100);
+  moreMsg.style.display = vis.length > shown.length ? 'block' : 'none';
+  moreMsg.textContent = vis.length > shown.length ? `Showing first ${shown.length} of ${vis.length}` : '';
+  shown.forEach(f => {
+    const p = f.properties; const d = document.createElement('div');
+    const sc = p.status === 'live' ? 'sb-live' : p.status === 'dead' ? 'sb-dead' : 'sb-unknown';
+    const sl = p.status === 'live' ? '● Live' : p.status === 'dead' ? '● Dead' : '● Unknown';
+    d.className = 'cam-row';
+    d.innerHTML = `<div class="cam-name">${feedEmoji(p.feed_type)} ${esc(p.label)}</div><div class="cam-meta"><span>${esc(first(p.city, p.region, p.continent, ''))}</span><span class="sbadge ${sc}">${sl}</span></div>`;
+    d.onclick = () => { const m = markerById.get(p.id); if (m) { map.setView(m.getLatLng(), Math.max(map.getZoom(), 13)); m.openPopup(); switchToMap(); } };
+    list.appendChild(d);
+  });
+}
+function previewHtml(p, uid) {
+  const media = String(p.feed_type || '').toLowerCase();
+  const url = first(p.stream_url, p.direct_stream_url, p.snapshot_url, p.thumbnail_url, p.url);
+  const thumb = first(p.thumbnail_url, p.snapshot_url);
+  if (!url) return `<div class="p-preview"><div class="p-note" style="padding:14px">No preview URL available</div></div>`;
+  if (media === 'hls') return `<div class="p-preview"><video id="${uid}" muted controls playsinline></video></div>`;
+  if (['mp4','webm','ogg'].includes(media)) return `<div class="p-preview"><video src="${esc(url)}" muted controls playsinline preload="metadata"></video></div>`;
+  if (media === 'mjpeg' || media === 'image_snapshot') return `<div class="p-preview"><img id="${uid}" src="${esc(url)}" alt="camera preview"></div>`;
+  if (thumb) return `<div class="p-preview"><img src="${esc(thumb)}" alt="camera thumbnail"></div>`;
+  return `<div class="p-preview"><div class="p-note" style="padding:14px">Inline preview unavailable for this media type</div></div>`;
+}
+function initPopupMedia(p, uid) {
+  const media = String(p.feed_type || '').toLowerCase();
+  const url = first(p.stream_url, p.direct_stream_url, p.snapshot_url, p.thumbnail_url, p.url);
+  if (media === 'hls') {
+    const video = document.getElementById(uid);
+    if (!video || !url) return;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) video.src = url;
+    else if (window.Hls && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video); video._hls = hls; }
+  }
+  if (media === 'image_snapshot') {
+    const img = document.getElementById(uid); if (!img) return;
+    const base = url; const refresh = Math.max(10, Number(p.map_refresh_rate_seconds || p.camera_refresh_rate || 30));
+    img._refreshTimer = setInterval(() => { const sep = base.includes('?') ? '&' : '?'; img.src = `${base}${sep}_camera_discovery_ts=${Date.now()}`; }, refresh * 1000);
+  }
+}
+function makeMarker(f) {
+  const p = f.properties; const [lng, lat] = f.geometry.coordinates;
+  const col = statusColor(p.status || 'unknown'), em = feedEmoji(p.feed_type), se = scoreEmoji(p.legitimacy_score);
+  const uid = 'prev-' + String(p.id || Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/gi, '');
+  const icon = L.divIcon({ className:'', html:`<div style="width:28px;height:28px;border-radius:50%;background:${col};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.55)">${em}</div>`, iconSize:[28,28], iconAnchor:[14,14] });
+  const source = first(p.source_url, p.url); const mediaUrl = first(p.stream_url, p.direct_stream_url, p.snapshot_url, p.url);
+  const popup = `
+    <div class="p-title">${em} ${esc(p.label)}</div>
+    <div class="p-city">${esc([p.city, p.region, p.country].filter(Boolean).join(' · '))}</div>
+    ${previewHtml(p, uid)}
+    <div class="p-grid">
+      <div class="p-k">Status</div><div class="p-v">${esc(p.status)} (${esc(p.status_detail)})</div>
+      <div class="p-k">Camera type</div><div class="p-v">${esc(p.camera_type)}</div>
+      <div class="p-k">Media type</div><div class="p-v">${esc(p.feed_type)}</div>
+      <div class="p-k">Trust</div><div class="p-v">${se} ${esc(p.legitimacy_score)}</div>
+      <div class="p-k">Stage/scope</div><div class="p-v">${esc(p.continent)}</div>
+      <div class="p-k">Source</div><div class="p-v">${esc(p.source_directory)}</div>
+      <div class="p-k">Coordinates</div><div class="p-v">${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}</div>
+    </div>
+    <div class="p-btn-row">
+      ${mediaUrl ? `<a class="p-btn" href="${esc(mediaUrl)}" target="_blank" rel="noopener">Open Media</a>` : ''}
+      ${source ? `<a class="p-btn" href="${esc(source)}" target="_blank" rel="noopener">Open Source</a>` : ''}
+    </div>
+    <div class="p-summary">
+      <div><strong style="color:var(--text)">Video Summary</strong></div>
+      <label>Interval
+        <select id="sum-int-${uid}">
+          <option value="15">15s</option><option value="30">30s</option><option value="60">60s</option>
+          <option value="120">120s</option><option value="240">240s</option><option value="300">300s</option>
+        </select>
+      </label>
+      <div class="p-btn-row"><button class="p-btn" disabled title="Start the map review server to enable summarization">Summarize Video</button></div>
+      <div class="p-small">Static map mode. Summary records must include provider, LLM model, prompt version, interval, frames sampled, cache status, warnings, and errors.</div>
+    </div>`;
+  const marker = L.marker([lat, lng], {icon});
+  marker.bindPopup(popup, {maxWidth:390});
+  marker.on('popupopen', () => setTimeout(() => initPopupMedia(p, uid), 20));
+  return marker;
+}
+function buildDynamic(features) {
+  const feedTypes = [...new Set(features.map(f => f.properties.feed_type || 'unknown'))].sort();
+  const stages = [...new Set(features.map(f => f.properties.continent || 'candidate'))].sort();
+  F.feedtype = new Set(feedTypes); F.continent = new Set(stages);
+  const ftEl = document.getElementById('feedtype-chips'); ftEl.innerHTML = '';
+  feedTypes.forEach(ft => ftEl.appendChild(chip(`${feedEmoji(ft)} ${ft}`, 'feedtype', ft, true)));
+  const coEl = document.getElementById('continent-chips'); coEl.innerHTML = '';
+  stages.forEach(c => coEl.appendChild(chip(c, 'continent', c, true)));
+  rebuildTableDropdowns();
+}
+function chip(text, filterKey, value, active) {
+  const el = document.createElement('span'); el.className = 'chip' + (active ? ' on' : ''); el.dataset.f = filterKey; el.dataset.v = value; el.textContent = text;
+  el.onclick = () => toggleChip(el, filterKey, value); return el;
+}
+function toggleChip(el, key, value) {
+  const set = F[key];
+  if (set.has(value)) { set.delete(value); el.classList.remove('on','on-live','on-unknown','on-dead'); }
+  else { set.add(value); el.classList.add('on'); if (key === 'status') el.classList.add(value === 'live' ? 'on-live' : value === 'dead' ? 'on-dead' : 'on-unknown'); }
+  render();
+}
+function setQuick(statusSet, scoreSet) {
+  F.status = new Set(statusSet); F.score = new Set(scoreSet);
+  document.querySelectorAll('.chip[data-f="status"]').forEach(el => {
+    const on = F.status.has(el.dataset.v); el.classList.toggle('on', on); el.classList.toggle('on-live', on && el.dataset.v === 'live'); el.classList.toggle('on-unknown', on && el.dataset.v === 'unknown'); el.classList.toggle('on-dead', on && el.dataset.v === 'dead');
+  });
+  document.querySelectorAll('.chip[data-f="score"]').forEach(el => el.classList.toggle('on', F.score.has(el.dataset.v)));
+  render();
+}
+function refreshHeat(features) {
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (!heatActive || !features.length) return;
+  heatLayer = L.heatLayer(features.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0], 0.65]), { radius:25, blur:18, maxZoom:10 }).addTo(map);
+}
+function loadData(data, filename) {
+  let parsed;
+  try { parsed = bundleToData(data, filename); } catch (err) { alert(err.message); return; }
+  allRows = parsed.rows;
+  allFeatures = parsed.features.filter(f => f && f.geometry && f.geometry.type === 'Point' && Number.isFinite(f.geometry.coordinates[0]) && Number.isFinite(f.geometry.coordinates[1]));
+  document.getElementById('active-file').textContent = filename;
+  buildDynamic(allFeatures);
+  F.status = new Set(['live','unknown','dead']); F.score = new Set(['high','medium','low']); F.search = ''; document.getElementById('search').value = '';
+  document.querySelectorAll('.chip[data-f="status"], .chip[data-f="score"]').forEach(el => el.classList.add('on'));
+  document.getElementById('empty-state').classList.add('hidden');
+  render();
+}
+function tableRows() {
+  return allRows.filter(p => {
+    if (tableStatus && p.status !== tableStatus) return false;
+    if (tableFeed && p.feed_type !== tableFeed) return false;
+    if (tableCont && p.continent !== tableCont) return false;
+    if (tableSearch) {
+      const q = tableSearch.toLowerCase();
+      const h = `${p.label||''} ${p.city||''} ${p.region||''} ${p.country||''} ${p.continent||''} ${p.source_directory||''} ${p.status_detail||''}`.toLowerCase();
+      if (!h.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b) => String(a[tableSort.col] || '').localeCompare(String(b[tableSort.col] || '')) * tableSort.dir);
+}
+function rebuildTableDropdowns() {
+  const feedSel = document.getElementById('tp-feed-sel'), contSel = document.getElementById('tp-cont-sel');
+  feedSel.length = 1; contSel.length = 1;
+  [...new Set(allRows.map(p => p.feed_type || 'unknown'))].sort().forEach(ft => feedSel.add(new Option(`${feedEmoji(ft)} ${ft}`, ft)));
+  [...new Set(allRows.map(p => p.continent || 'candidate'))].sort().forEach(c => contSel.add(new Option(c, c)));
+}
+function renderTable() {
+  const rows = tableRows(), tbody = document.getElementById('tp-body'), empty = document.getElementById('tp-empty');
+  document.getElementById('tp-count').textContent = `${rows.length} rows`;
+  tbody.innerHTML = ''; empty.style.display = rows.length ? 'none' : 'block';
+  const frag = document.createDocumentFragment();
+  rows.slice(0, 1000).forEach(p => {
+    const tr = document.createElement('tr');
+    const sClass = p.status === 'live' ? 'tp-live' : p.status === 'dead' ? 'tp-dead' : 'tp-unknown';
+    const sLabel = p.status === 'live' ? '● Live' : p.status === 'dead' ? '● Dead' : '● Unknown';
+    const cClass = p.legitimacy_score === 'high' ? 'tp-high' : p.legitimacy_score === 'medium' ? 'tp-medium' : 'tp-low';
+    const mediaUrl = first(p.stream_url, p.direct_stream_url, p.snapshot_url, p.url);
+    tr.innerHTML = `
+      <td><span class="tp-badge ${sClass}">${sLabel}</span></td>
+      <td>${esc(p.label)}</td><td>${esc(p.city)}</td><td>${esc(p.region)}</td><td>${esc(p.country)}</td><td>${esc(p.continent)}</td>
+      <td>${feedEmoji(p.feed_type)} ${esc(p.feed_type)}</td><td><span class="tp-badge ${cClass}">${esc(p.legitimacy_score)}</span></td>
+      <td>${esc(p.last_verified || p.status_detail || '')}</td><td>${esc(p.source_directory || '')}</td>
+      <td>${mediaUrl ? `<a class="tp-link" href="${esc(mediaUrl)}" target="_blank" rel="noopener">Open</a>` : '—'}</td>
+      <td>${p.has_coordinates ? `<button class="tp-map-btn" data-id="${esc(p.id)}">Map</button>` : '—'}</td>`;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+  tbody.querySelectorAll('.tp-map-btn').forEach(btn => btn.onclick = () => { const m = markerById.get(btn.dataset.id); if (m) { switchToMap(); map.setView(m.getLatLng(), 13); m.openPopup(); } });
+}
+function switchToMap() { document.getElementById('map').style.display = ''; document.getElementById('table-panel').style.display = 'none'; document.getElementById('btn-table').textContent = '📋 Table'; setTimeout(() => map.invalidateSize(), 50); }
+function switchToTable() { document.getElementById('map').style.display = 'none'; document.getElementById('table-panel').style.display = 'block'; document.getElementById('btn-table').textContent = '🗺️ Map'; renderTable(); }
+
+document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
+document.getElementById('es-load-btn').onclick = () => document.getElementById('file-input').click();
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { try { loadData(JSON.parse(ev.target.result), file.name); } catch (err) { alert('Could not parse JSON. Browser ZIP import is planned; use the CLI to build map artifacts from artifacts.zip for now.'); } };
+  reader.readAsText(file);
+});
+document.querySelectorAll('.chip[data-f="status"], .chip[data-f="score"]').forEach(el => el.onclick = () => toggleChip(el, el.dataset.f, el.dataset.v));
+document.getElementById('search').addEventListener('input', e => { F.search = e.target.value; render(); });
+document.getElementById('q-all').onclick = () => setQuick(['live','unknown','dead'], ['high','medium','low']);
+document.getElementById('q-live-only').onclick = () => setQuick(['live'], ['high','medium','low']);
+document.getElementById('q-hq').onclick = () => setQuick(['live','unknown','dead'], ['high']);
+document.getElementById('tog-heat').onclick = function() { heatActive = this.classList.toggle('on'); render(); };
+document.getElementById('btn-table').onclick = () => document.getElementById('table-panel').style.display === 'block' ? switchToMap() : switchToTable();
+document.getElementById('tp-search').oninput = e => { tableSearch = e.target.value; renderTable(); };
+document.getElementById('tp-status-sel').onchange = e => { tableStatus = e.target.value; renderTable(); };
+document.getElementById('tp-feed-sel').onchange = e => { tableFeed = e.target.value; renderTable(); };
+document.getElementById('tp-cont-sel').onchange = e => { tableCont = e.target.value; renderTable(); };
+document.querySelectorAll('#tp-table th[data-col]').forEach(th => th.onclick = () => { const col = th.dataset.col; tableSort.dir = tableSort.col === col ? -tableSort.dir : 1; tableSort.col = col; renderTable(); });
+document.getElementById('tp-export').onclick = () => {
+  const cols = ['id','label','city','region','country','continent','feed_type','camera_type','status','status_detail','legitimacy_score','source_directory','url','stream_url','latitude','longitude'];
+  const csv = [cols.join(','), ...tableRows().map(p => cols.map(c => `"${String(p[c] || '').replace(/"/g,'""')}"`).join(','))].join('
+');
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], {type:'text/csv'})), download: 'camera_map_rows.csv' }); a.click(); URL.revokeObjectURL(a.href);
+};
+(function() {
+  const dropZone = document.getElementById('es-drop-zone'), layout = document.getElementById('layout');
+  function handleDrop(e) { e.preventDefault(); dropZone.classList.remove('drag'); const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!file) return; const r = new FileReader(); r.onload = ev => { try { loadData(JSON.parse(ev.target.result), file.name); } catch (err) { alert('Could not parse dropped JSON file.'); } }; r.readAsText(file); }
+  ['dragenter','dragover'].forEach(evt => layout.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt => layout.addEventListener(evt, e => { if (evt === 'drop') handleDrop(e); else dropZone.classList.remove('drag'); }));
+  document.getElementById('es-copy-btn').onclick = async () => { try { await navigator.clipboard.writeText(document.getElementById('es-cmd-text').textContent); } catch(_) {} };
+})();
+(async () => {
+  if (window.location.protocol === 'file:') return;
+  for (const name of ['camera_map_bundle.json', 'camera_map.geojson', 'camera.geojson']) {
+    try { const res = await fetch(name); if (!res.ok) throw new Error(`HTTP ${res.status}`); const data = await res.json(); loadData(data, name); return; } catch (err) { console.info(`${name} not auto-loaded: ${err.message}`); }
+  }
+})();
 </script>
 </body>
 </html>
