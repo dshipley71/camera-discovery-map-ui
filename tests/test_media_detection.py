@@ -1,4 +1,4 @@
-from camera_discovery_map_ui.media import detect_media_type, preview_capability
+from camera_discovery_ui.media import detect_media_type, preview_capability
 
 
 def test_media_detection_supported_types():
