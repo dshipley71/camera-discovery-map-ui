@@ -38,7 +38,7 @@ STATUS_VALUES = ("live", "dead", "unknown")
 MEDIA_TYPES = ("hls", "mp4", "webm", "ogg", "mjpeg", "image_snapshot", "web_embed", "unknown")
 PREVIEW_CAPABILITIES = ("hls_video", "native_video", "mjpeg_image", "refreshing_image", "iframe_or_link", "metadata_only")
 
-InputType = Literal["directory", "zip"]
+InputType = Literal["directory", "zip", "geojson", "json", "csv", "jsonl"]
 
 
 class NormalizedRecord(TypedDict, total=False):

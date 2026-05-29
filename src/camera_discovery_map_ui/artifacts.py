@@ -11,13 +11,51 @@ from camera_discovery_map_ui.schema import ArtifactSet, KNOWN_ARTIFACTS
 
 
 def load_artifacts(input_path: str | Path) -> ArtifactSet:
-    """Load known camera-discovery artifacts from a directory or ZIP file."""
+    """Load camera-discovery map inputs from a directory, ZIP, or single data file.
+
+    Direct single-file input is useful during UI development and analyst review when a
+    user only has one GeoJSON/CSV/JSONL artifact instead of a full camera-discovery
+    artifact bundle. Single GeoJSON/JSON files are treated as camera GeoJSON unless
+    their filename clearly indicates an untrusted or harvest artifact.
+    """
     path = Path(input_path)
     if path.is_dir():
         return _load_from_directory(path)
     if path.is_file() and path.suffix.lower() == ".zip":
         return _load_from_zip(path)
-    raise FileNotFoundError(f"Input must be an artifact directory or .zip file: {path}")
+    if path.is_file():
+        return _load_from_file(path)
+    raise FileNotFoundError(f"Input must be an artifact directory, .zip file, or supported data file: {path}")
+
+
+def _artifact_key_for_file(path: Path) -> str | None:
+    name = path.name.lower()
+    suffix = path.suffix.lower()
+    if suffix in {".geojson", ".json"}:
+        if "harvest" in name and "geocoded" in name:
+            return "harvest_geocoded.geojson"
+        if "harvest" in name and "untrusted" in name:
+            return "harvest_untrusted.geojson"
+        if "harvest" in name:
+            return "harvest_unvalidated.geojson"
+        if "untrusted" in name or "candidate" in name:
+            return "untrusted_camera_candidates.geojson"
+        return "camera.geojson"
+    if suffix == ".csv":
+        if "harvest" in name:
+            return "harvest_records.csv"
+        return "camera_candidates_table.csv"
+    if suffix == ".jsonl":
+        return "harvest_records.jsonl"
+    return None
+
+
+def _load_from_file(path: Path) -> ArtifactSet:
+    key = _artifact_key_for_file(path)
+    if key is None:
+        raise FileNotFoundError(f"Unsupported input file type: {path}")
+    input_type = path.suffix.lower().lstrip(".") or "file"
+    return ArtifactSet(input_path=path, input_type=input_type, files={key: path.read_text(encoding="utf-8")})
 
 
 def _load_from_directory(path: Path) -> ArtifactSet:
